@@ -156,6 +156,7 @@ inline void printConfigOverview(const Config& config) {
   os << "  smooth:               " << yn(hc.map.smooth) << "\n";
   os << "  weighted:             " << yn(hc.map.weighted) << "\n";
   os << "  frame:                " << hc.map_frame << "\n";
+  os << "  publish_tf:           " << yn(hc.publish_tf) << "\n";
   os << "preprocess:\n";
   os << "  downsample_res_m:     " << hc.preprocess.downsample_resolution << "\n";
   os << "  informed_sampling:    " << yn(hc.preprocess.informed_sampling) << "\n";
@@ -180,6 +181,8 @@ inline void printConfigOverview(const Config& config) {
   os << "  log_path:             " << (hc.log_path.empty() ? "<none>" : hc.log_path) << "\n";
   os << "calibration (LiDAR -> IMU):\n";
   printExtrinsic(os, "T_I_L", hc.T_I_L);
+  os << "calibration (Base_link -> LiDAR ):\n";
+  printExtrinsic(os, "T_L_B", hc.T_L_B);
   os << "==================================================";
   LOG(I, os.str());
 }
@@ -230,6 +233,7 @@ inline bool loadConfigFromYaml(const std::vector<std::string>& yaml_paths, Confi
   hc.map.weighted = yaml.get<bool>("map", "weighted", false);
   // The map frame is the parent (odometry) frame for published poses/clouds.
   hc.map_frame = yaml.get<std::string>("map", "frame", hc.map_frame);
+  hc.publish_tf = yaml.get<bool>("map", "publish_tf", true);
 
   // --- preprocess ---
   if (!config_internal::getPositive(yaml, "preprocess", "downsample_resolution_m", 0.15,
@@ -257,6 +261,7 @@ inline bool loadConfigFromYaml(const std::vector<std::string>& yaml_paths, Confi
   // The IMU frame is the body (child) frame of the published odometry.
   hc.body_frame = yaml.get<std::string>("imu", "frame", hc.body_frame);
 
+  
   // --- debug ---
   hc.publish_all_clouds = yaml.get<bool>("debug", "publish_all_clouds", false);
   hc.print_timing = yaml.get<bool>("debug", "timing", false);
@@ -297,6 +302,13 @@ inline bool loadConfigFromYaml(const std::vector<std::string>& yaml_paths, Confi
   if (!config_internal::extrinsicFromVectors(
           yaml.get<std::vector<double>>("calibration", "translation", {}),
           yaml.get<std::vector<double>>("calibration", "rotation", {}), "calibration", hc.T_I_L)) {
+    return false;
+  }
+
+  // --- calibration (LiDAR -> Base) ---
+  if (!config_internal::extrinsicFromVectors(
+          yaml.get<std::vector<double>>("sensor_pose", "translation", {}),
+          yaml.get<std::vector<double>>("sensor_pose", "rotation", {}), "sensor_pose", hc.T_L_B)) {
     return false;
   }
 

@@ -21,12 +21,14 @@ class Pipeline {
     RegistrationConfig registration;
     BIEVRMap::Config map;
     bool print_timing = false;
+    bool publish_tf = true;  // Publish the odometry pose as a TF transform
     bool publish_all_clouds = false;
     bool print_debug = false;      // when true, lower the log level to show DEBUG messages
     bool print_dashboard = false;  // when true, print the fancy live status dashboard
     // Path to the ASCII art shown at the top of the dashboard (e.g. bievr_ascii.txt).
     std::string dashboard_ascii_path = "";
     Transform T_I_L = Transform::Identity();  // Transform from LiDAR to IMU frame
+    Transform T_L_B = Transform::Identity();  // Transform from LiDAR to Base frame
     std::string map_frame = "map";
     std::string body_frame = "body";
     std::string log_path = "";
@@ -83,6 +85,9 @@ class Pipeline {
       LOG(E, "No publisher registered in pipeline for type.");
     }
   }
+
+  // Returns the adjoint of T, to map the hessian to from world frame to body frame.
+  static M6 adjointSE3(const Transform& T);
 
   void publishFrame(const Header& header, const Transform& T_W_I, const Pointcloud& full_registered,
                     const Pointcloud& source_filtered, const Pointcloud& source_coarse,
